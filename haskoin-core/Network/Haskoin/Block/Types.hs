@@ -1,6 +1,9 @@
 module Network.Haskoin.Block.Types
 ( Block(..)
 , BlockHeader
+, BlockHeight
+, Timestamp
+, MinWork
 , createBlockHeader
 , blockVersion
 , prevBlock
@@ -33,8 +36,8 @@ import           Data.ByteString                   (ByteString)
 import qualified Data.ByteString                   as BS (length, reverse)
 import           Data.Maybe                        (fromMaybe)
 import           Data.Serialize                    (Serialize, encode, get, put)
-import           Data.Serialize.Get                (getWord32le, lookAhead,
-                                                    remaining, getByteString)
+import           Data.Serialize.Get                (getByteString, getWord32le,
+                                                    lookAhead, remaining)
 import           Data.Serialize.Put                (Put, putWord32le)
 import           Data.String                       (IsString, fromString)
 import           Data.String.Conversions           (cs)
@@ -47,15 +50,19 @@ import           Text.Read                         (lexP, parens, pfail,
                                                     readPrec)
 import qualified Text.Read                         as Read (Lexeme (Ident, String))
 
+type BlockHeight = Word32
+type Timestamp = Word32
+type MinWork = Word32
+
 -- | Data type describing a block in the bitcoin protocol. Blocks are sent in
 -- response to 'GetData' messages that are requesting information from a
 -- block hash.
 data Block =
     Block {
             -- | Header information for this block.
-            blockHeader     :: !BlockHeader
+            blockHeader :: !BlockHeader
             -- | List of transactions pertaining to this block.
-          , blockTxns       :: ![Tx]
+          , blockTxns   :: ![Tx]
           } deriving (Eq, Show, Read)
 
 instance NFData Block where
@@ -357,4 +364,3 @@ encodeCompact i
     (s2,c2) | c1 .&. 0x00800000 /= 0  = (s1 + 1, c1 `shiftR` 8)
             | otherwise               = (s1, c1)
     c3 = fromIntegral $ c2 .|. (toInteger s2 `shiftL` 24)
-

@@ -19,6 +19,7 @@ import           Database.Persist.Sqlite          (SqlPersistT,
                                                    runMigrationSilent,
                                                    runSqlite)
 import           Network.Haskoin.Block
+import           Network.Haskoin.Constants
 import           Network.Haskoin.Crypto
 import           Network.Haskoin.Node.HeaderTree
 import           Network.Haskoin.Script
@@ -512,7 +513,7 @@ testBalances = do
         [(1, BalanceInfo 20000000 20000000 1 1)]
 
     -- Confirm the funding transaction at height 1
-    let block1 = fakeNode genesisBlock [txHash fundingTx] 0 1
+    let block1 = fakeNode genesisNodeBlock [txHash fundingTx] 0 1
     importMerkles (BestChain [block1]) [[txHash fundingTx]] Nothing
 
     assertBalance ai 0 0
@@ -689,7 +690,7 @@ testConflictBalances = do
         [(0, BalanceInfo 4000000 0 1 0)]
 
     -- Let's confirm these two transactions
-    let block1 = fakeNode genesisBlock [txHash tx1] 0 1
+    let block1 = fakeNode genesisNodeBlock [txHash tx1] 0 1
         block2 = fakeNode block1 [txHash tx2] 0 2
     importMerkles (BestChain [block1, block2])
         [[txHash tx1], [txHash tx2]] Nothing
@@ -751,11 +752,11 @@ testConflictBalances = do
         [(0, BalanceInfo 0 0 0 0)]
 
     -- Now we trigger a reorg that validates tx4. tx1, tx2 and tx3 should be dead
-    let block1' = fakeNode genesisBlock [] 1 11
+    let block1' = fakeNode genesisNodeBlock [] 1 11
         block2' = fakeNode block1' [txHash tx4] 1 22
         block3' = fakeNode block2' [] 1 33
     importMerkles
-        (ChainReorg genesisBlock [block1, block2] [block1', block2', block3'])
+        (ChainReorg genesisNodeBlock [block1, block2] [block1', block2', block3'])
         [[], [txHash tx4], []] Nothing
 
     assertTxConfidence ai (txHash tx1) TxDead
@@ -780,7 +781,7 @@ testConflictBalances = do
     let block3 = fakeNode block2 [] 0 3
         block4 = fakeNode block3 [] 0 4
     importMerkles
-        (ChainReorg genesisBlock [block1', block2', block3']
+        (ChainReorg genesisNodeBlock [block1', block2', block3']
          [block1, block2, block3, block4])
         [[txHash tx1], [txHash tx2], [], []] Nothing
 
@@ -1378,7 +1379,7 @@ testNotification = do
 
     _ <- importNetTx tx3 Nothing
 
-    let block1 = fakeNode genesisBlock [txHash tx1] 0 1
+    let block1 = fakeNode genesisNodeBlock [txHash tx1] 0 1
         block2 = fakeNode block1 [txHash tx2] 0 2
         best = BestChain [block1, block2]
         txs1 = [[txHash tx1], [txHash tx2]]

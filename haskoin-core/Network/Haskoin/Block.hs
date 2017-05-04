@@ -7,6 +7,9 @@ module Network.Haskoin.Block
   Block(..)
 , BlockLocator
 , GetBlocks(..)
+, BlockHeight
+, Timestamp
+, MinWork
 
   -- * Block Headers
 , BlockHeader
@@ -40,8 +43,18 @@ module Network.Haskoin.Block
   -- * Difficulty Target
 , decodeCompact
 , encodeCompact
+
+  -- * Block Validation
+, validateBlock
+, diffInterval
+, headerWork
+, isMinWork
+
+  -- * Genesis
+, genesisBlock
 ) where
 
-import Network.Haskoin.Block.Types
-import Network.Haskoin.Block.Merkle
-
+import           Network.Haskoin.Block.Genesis
+import           Network.Haskoin.Block.Merkle
+import           Network.Haskoin.Block.Types
+import           Network.Haskoin.Block.Validation

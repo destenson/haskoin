@@ -42,13 +42,14 @@ tests =
 
 initialize :: App ()
 initialize = do
+    liftIO setProdnet
     initHeaderTree
     bM <- getBlockByHash (headerHash genesisHeader)
-    liftIO $ assertEqual "Genesis node in header tree" (Just genesisBlock) bM
+    liftIO $ assertEqual "Genesis node in header tree" (Just genesisNodeBlock) bM
     hs <- getHeads
-    liftIO $ assertEqual "Genesis node is only head" [genesisBlock] hs
+    liftIO $ assertEqual "Genesis node is only head" [genesisNodeBlock] hs
     bh <- getBestBlock
-    liftIO $ assertEqual "Genesis node matches best header" genesisBlock bh
+    liftIO $ assertEqual "Genesis node matches best header" genesisNodeBlock bh
 
 addSecondBlock :: App ()
 addSecondBlock = do
@@ -135,14 +136,14 @@ getBestChain = mockBlockChain >> do
     ch <- getBlocksFromHeight h 0 0
     liftIO $ assertEqual "Best chain correct" bch ch
   where
-    bch = genesisBlock : take 2 chain0 ++ chain3
+    bch = genesisNodeBlock : take 2 chain0 ++ chain3
 
 getSideChain :: App ()
 getSideChain = mockBlockChain >> do
     ch <- getBlocksFromHeight (chain2 !! 1) 0 0
     liftIO $ assertEqual "Side chain correct" sch ch
   where
-    sch = genesisBlock :
+    sch = genesisNodeBlock :
         take 3 chain0 ++ take 2 chain1 ++ take 2 chain2
 
 getNodesHeight :: App ()
@@ -237,7 +238,7 @@ foldBlock :: Maybe NodeBlock -> [(Word32, Word32)] -> [NodeBlock]
 foldBlock nM =
     foldl f (maybeToList nM)
   where
-    f [] _ = [genesisBlock]
+    f [] _ = [genesisNodeBlock]
     f ls@(l:_) (n, chain) = mockBlock l chain n : ls
 
 mockBlock :: NodeBlock -> Word32 -> Word32 -> NodeBlock

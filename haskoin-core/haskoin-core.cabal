@@ -1,5 +1,5 @@
 name:                  haskoin-core
-version:               0.4.2
+version:               0.5.0
 synopsis:
     Implementation of the core Bitcoin protocol features.
 description:
@@ -63,8 +63,11 @@ library
                    Network.Haskoin.Script.Evaluator
                    Network.Haskoin.Transaction.Types
                    Network.Haskoin.Transaction.Builder
+                   Network.Haskoin.Transaction.Genesis
+                   Network.Haskoin.Block.Validation
                    Network.Haskoin.Block.Types
                    Network.Haskoin.Block.Merkle
+                   Network.Haskoin.Block.Genesis
                    Network.Haskoin.Test.Util
                    Network.Haskoin.Test.Crypto
                    Network.Haskoin.Test.Node

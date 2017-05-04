@@ -7,8 +7,11 @@ module Network.Haskoin.Constants
   Network(..)
 , prodnet
 , testnet3
+, regtest
   -- ** Functions
-, switchToTestnet3
+, setTestnet3
+, setRegtest
+, setProdnet
 , setNetwork
 , getNetwork
   -- ** Network parameters
@@ -25,61 +28,85 @@ module Network.Haskoin.Constants
 , haskoinUserAgent
 , defaultPort
 , allowMinDifficultyBlocks
+, powNoRetargetting
 , powLimit
+, bip34Block
 , targetTimespan
 , targetSpacing
 , checkpoints
+, seeds
 ) where
 
-import Data.Bits (shiftR)
-import Data.ByteString (ByteString)
-import qualified Data.ByteString.Char8 as C8 (concat, pack)
-import Data.IORef (IORef, newIORef, readIORef, writeIORef)
-import Data.Version (showVersion)
-import Data.Word (Word8, Word32, Word64)
-import Data.LargeWord (Word256)
-import Network.Haskoin.Block.Types
-import System.IO.Unsafe (unsafePerformIO)
-import Paths_haskoin_core (version)
+import           Data.Bits                         (shiftR)
+import           Data.ByteString                   (ByteString)
+import qualified Data.ByteString.Char8             as C8 (concat, pack)
+import           Data.IORef                        (IORef, newIORef, readIORef,
+                                                    writeIORef)
+import           Data.LargeWord                    (Word256)
+import           Data.Version                      (showVersion)
+import           Data.Word                         (Word32, Word64, Word8)
+import           Network.Haskoin.Block.Types
+import           Paths_haskoin_core                (version)
+import           System.IO.Unsafe                  (unsafePerformIO)
 
 data Network = Network
-    { getNetworkName                :: !String
-    , getAddrPrefix                 :: !Word8
-    , getScriptPrefix               :: !Word8
-    , getSecretPrefix               :: !Word8
-    , getExtPubKeyPrefix            :: !Word32
-    , getExtSecretPrefix            :: !Word32
-    , getNetworkMagic               :: !Word32
-    , getGenesisHeader              :: !BlockHeader
-    , getMaxBlockSize               :: !Int
-    , getMaxSatoshi                 :: !Word64
-    , getHaskoinUserAgent           :: !ByteString
-    , getDefaultPort                :: !Int
-    , getAllowMinDifficultyBlocks   :: !Bool
-    , getPowLimit                   :: !Integer
-    , getTargetTimespan             :: !Word32
-    , getTargetSpacing              :: !Word32
-    , getCheckpoints                :: ![(Int, BlockHash)]
+    { getNetworkName              :: !String
+    , getAddrPrefix               :: !Word8
+    , getScriptPrefix             :: !Word8
+    , getSecretPrefix             :: !Word8
+    , getExtPubKeyPrefix          :: !Word32
+    , getExtSecretPrefix          :: !Word32
+    , getNetworkMagic             :: !Word32
+    , getGenesisHeader            :: !BlockHeader
+    , getMaxBlockSize             :: !Int
+    , getMaxSatoshi               :: !Word64
+    , getHaskoinUserAgent         :: !ByteString
+    , getDefaultPort              :: !Int
+    , getAllowMinDifficultyBlocks :: !Bool
+    , getPowNoRetargetting        :: !Bool
+    , getPowLimit                 :: !Integer
+    , getBip34Block               :: !(Int, BlockHash)
+    , getTargetTimespan           :: !Word32
+    , getTargetSpacing            :: !Word32
+    , getCheckpoints              :: ![(Int, BlockHash)]
+    , getSeeds                    :: [String]
     } deriving (Eq, Show, Read)
 
--- | Switch to Testnet3.  Do at start of program.
-switchToTestnet3 :: IO ()
-switchToTestnet3 = setNetwork testnet3
+-- | Set network to Testnet3
+setTestnet3 :: IO ()
+setTestnet3 = setNetwork testnet3
+
+-- | Set network to Regtest
+setRegtest :: IO ()
+setRegtest = setNetwork regtest
+
+-- | Set network to Bitcoin
+setProdnet :: IO ()
+setProdnet = setNetwork prodnet
 
 -- | Change network constants manually.  If switching to Testnet3, use
 -- switchToTestnet3 instead.
 setNetwork :: Network -> IO ()
-setNetwork = writeIORef networkRef
+setNetwork net = writeIORef networkRef net >> writeIORef networkSetRef True
 
 {-# NOINLINE networkRef #-}
 -- | Use this if you want to change constants to something other than Testnet3.
 networkRef :: IORef Network
 networkRef = unsafePerformIO $ newIORef prodnet
 
+{-# NOINLINE networkSetRef #-}
+networkSetRef :: IORef Bool
+networkSetRef = unsafePerformIO $ newIORef False
+
 {-# NOINLINE getNetwork #-}
 -- | Read current network constants record
 getNetwork :: Network
-getNetwork = unsafePerformIO $ readIORef networkRef
+getNetwork =
+    let (net, set) = unsafePerformIO $
+                     (,) <$> readIORef networkRef <*> readIORef networkSetRef
+    in if set
+       then net
+       else error "Use Network.Haskoin.Constants.setNetwork"
 
 -- | Name of the bitcoin network
 networkName :: String
@@ -133,9 +160,17 @@ defaultPort = getDefaultPort getNetwork
 allowMinDifficultyBlocks :: Bool
 allowMinDifficultyBlocks = getAllowMinDifficultyBlocks getNetwork
 
+-- | No POW retargetting
+powNoRetargetting :: Bool
+powNoRetargetting = getPowNoRetargetting getNetwork
+
 -- | Lower bound for the proof of work difficulty
 powLimit :: Integer
 powLimit = getPowLimit getNetwork
+
+-- | Version 2 blocks starting here
+bip34Block :: (Int, BlockHash)
+bip34Block = getBip34Block getNetwork
 
 -- | Time between difficulty cycles (2 weeks on average)
 targetTimespan :: Word32
@@ -149,6 +184,10 @@ targetSpacing = getTargetSpacing getNetwork
 checkpoints :: [(Int, BlockHash)]
 checkpoints = getCheckpoints getNetwork
 
+-- | Network seeds
+seeds :: [String]
+seeds = getSeeds getNetwork
+
 prodnet :: Network
 prodnet = Network
     { getNetworkName = "prodnet"
@@ -158,24 +197,31 @@ prodnet = Network
     , getExtPubKeyPrefix = 0x0488b21e
     , getExtSecretPrefix = 0x0488ade4
     , getNetworkMagic = 0xf9beb4d9
-    , getGenesisHeader = createBlockHeader
-        0x01
-        "0000000000000000000000000000000000000000000000000000000000000000"
-        "3ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a"
-        1231006505
-        486604799
-        2083236893
-        -- Hash 000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f
+    , getGenesisHeader =
+        createBlockHeader
+            0x01
+            "0000000000000000000000000000000000000000000000000000000000000000"
+            "3ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a"
+            1231006505
+            0x1d00ffff
+            2083236893
+            -- Hash 000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f
     , getMaxBlockSize = 1000000
     , getMaxSatoshi = 2100000000000000
-    , getHaskoinUserAgent = C8.concat
-        [ "/haskoin:"
-        , C8.pack $ showVersion version
-        , "/"
-        ]
+    , getHaskoinUserAgent =
+        C8.concat
+            [ "/haskoin:"
+            , C8.pack $ showVersion version
+            , "/"
+            ]
     , getDefaultPort = 8333
     , getAllowMinDifficultyBlocks = False
+    , getPowNoRetargetting = False
     , getPowLimit = fromIntegral (maxBound `shiftR` 32 :: Word256)
+    , getBip34Block =
+        ( 227931
+        , "000000000000024b89b42a942fe0d9fea3bb44ab7bd1b19115dd6a759c0808b8"
+        )
     , getTargetTimespan = 14 * 24 * 60 * 60
     , getTargetSpacing = 10 * 60
     , getCheckpoints =
@@ -216,6 +262,13 @@ prodnet = Network
           , "0000000000000001ae8c72a0b0c301f67e3afca10e819efa9041e458e9bd7e40"
           )
         ]
+    , getSeeds =
+        [ "seed.bitcoin.sipa.be"        -- Pieter Wuille
+        , "dnsseed.bluematt.me"         -- Matt Corallo
+        , "dnsseed.bitcoin.dashjr.org"  -- Luke Dashjr
+        , "seed.bitcoinstats.com"       -- Chris Decker
+        , "seed.bitnodes.io"            -- Addy Yeow
+        ]
     }
 
 testnet3 :: Network
@@ -227,24 +280,31 @@ testnet3 = Network
     , getExtPubKeyPrefix = 0x043587cf
     , getExtSecretPrefix = 0x04358394
     , getNetworkMagic = 0x0b110907
-    , getGenesisHeader = createBlockHeader
-        0x01
-        "0000000000000000000000000000000000000000000000000000000000000000"
-        "3ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a"
-        1296688602
-        486604799
-        414098458
-        -- Hash 000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943
+    , getGenesisHeader =
+        createBlockHeader
+            0x01
+            "0000000000000000000000000000000000000000000000000000000000000000"
+            "3ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a"
+            1296688602
+            486604799
+            414098458
+            -- Hash 000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943
     , getMaxBlockSize = 1000000
     , getMaxSatoshi = 2100000000000000
-    , getHaskoinUserAgent = C8.concat
-        [ "/haskoin-testnet:"
-        , C8.pack $ showVersion version
-        , "/"
-        ]
+    , getHaskoinUserAgent =
+        C8.concat
+            [ "/haskoin-testnet:"
+            , C8.pack $ showVersion version
+            , "/"
+            ]
     , getDefaultPort = 18333
     , getAllowMinDifficultyBlocks = True
+    , getPowNoRetargetting = False
     , getPowLimit = fromIntegral (maxBound `shiftR` 32 :: Word256)
+    , getBip34Block =
+        ( 21111
+        , "0000000023b3a96d3484e5abb3755c413e7d41500f8e2a5c3f0dd01299cd8ef8"
+        )
     , getTargetTimespan = 14 * 24 * 60 * 60
     , getTargetSpacing = 10 * 60
     , getCheckpoints =
@@ -252,5 +312,49 @@ testnet3 = Network
           , "000000002a936ca763904c3c35fce2f3556c559c0214345d31b1bcebf76acb70"
           )
         ]
+    , getSeeds =
+        [ "testnet-seed.bitcoin.schildbach.de" -- Andreas Schildbach
+        , "testnet-seed.bitcoin.petertodd.org" -- Peter Todd
+        ]
     }
 
+
+regtest :: Network
+regtest = Network
+    { getNetworkName = "regtest"
+    , getAddrPrefix = 111
+    , getScriptPrefix = 196
+    , getSecretPrefix = 239
+    , getExtPubKeyPrefix = 0x043587cf
+    , getExtSecretPrefix = 0x04358394
+    , getNetworkMagic = 0xfabfb5da
+    , getGenesisHeader =
+        createBlockHeader
+            0x01
+            "0000000000000000000000000000000000000000000000000000000000000000"
+            "3ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a"
+            1296688602
+            0x207fffff
+            2
+            -- Hash 0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206
+    , getMaxBlockSize = 1000000
+    , getMaxSatoshi = 2100000000000000
+    , getHaskoinUserAgent =
+        C8.concat
+            [ "/haskoin-regtest:"
+            , C8.pack $ showVersion version
+            , "/"
+            ]
+    , getDefaultPort = 18444
+    , getAllowMinDifficultyBlocks = True
+    , getPowNoRetargetting = True
+    , getPowLimit = fromIntegral (maxBound `shiftR` 1 :: Word256)
+    , getBip34Block =
+        ( -1
+        , "0000000000000000000000000000000000000000000000000000000000000000"
+        )
+    , getTargetTimespan = 14 * 24 * 60 * 60
+    , getTargetSpacing = 10 * 60
+    , getCheckpoints = []
+    , getSeeds = [ "localhost" ]
+    }

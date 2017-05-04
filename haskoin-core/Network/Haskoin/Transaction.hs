@@ -43,8 +43,12 @@ module Network.Haskoin.Transaction
 , getMSFee
 
 , buildInput
+
+  -- *Genesis
+, genesisTx
 ) where
 
 import Network.Haskoin.Transaction.Builder
 import Network.Haskoin.Transaction.Types
+import Network.Haskoin.Transaction.Genesis
 

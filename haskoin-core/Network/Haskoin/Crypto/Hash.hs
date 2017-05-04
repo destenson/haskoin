@@ -25,42 +25,26 @@ module Network.Haskoin.Crypto.Hash
 , WorkingState
 ) where
 
-import Crypto.Hash
-    ( Digest
-    , SHA512
-    , SHA256
-    , SHA1
-    , RIPEMD160
-    , hash
-    )
-import Crypto.MAC.HMAC (hmac)
-
-import Control.DeepSeq (NFData, rnf)
-import Control.Monad ((<=<), guard)
-import Data.Byteable (toBytes)
-import Data.Maybe (fromMaybe)
-import Data.Word (Word16)
-import Data.String (IsString, fromString)
-import Data.String.Conversions (cs)
-import Text.Read (Lexeme(String, Ident), readPrec, lexP, parens, pfail)
-import Data.Serialize (Serialize, get, put)
-import Data.Serialize.Get (getByteString)
-import Data.Serialize.Put (putByteString)
-
-import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
-    ( null
-    , append
-    , cons
-    , concat
-    , take
-    , empty
-    , length
-    , replicate
-    , splitAt
-    )
-
-import Network.Haskoin.Util
+import           Control.DeepSeq         (NFData, rnf)
+import           Control.Monad           (guard, (<=<))
+import           Crypto.Hash             (Digest, RIPEMD160, SHA1, SHA256,
+                                          SHA512, hash)
+import           Crypto.MAC.HMAC         (hmac)
+import           Data.Byteable           (toBytes)
+import           Data.ByteString         (ByteString)
+import qualified Data.ByteString         as BS (append, concat, cons, empty,
+                                                length, null, replicate,
+                                                splitAt, take)
+import           Data.Maybe              (fromMaybe)
+import           Data.Serialize          (Serialize, get, put)
+import           Data.Serialize.Get      (getByteString)
+import           Data.Serialize.Put      (putByteString)
+import           Data.String             (IsString, fromString)
+import           Data.String.Conversions (cs)
+import           Data.Word               (Word16)
+import           Network.Haskoin.Util
+import           Text.Read               (Lexeme (Ident, String), lexP, parens,
+                                          pfail, readPrec)
 
 newtype CheckSum32 = CheckSum32 { getCheckSum32 :: ByteString }
     deriving (Eq, Ord)

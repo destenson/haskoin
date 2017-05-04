@@ -3,11 +3,10 @@
 {-# LANGUAGE RankNTypes            #-}
 module Network.Haskoin.Node.HeaderTree
 ( BlockChainAction(..)
-, BlockHeight
 , NodeBlock
-, Timestamp
 , initHeaderTree
 , migrateHeaderTree
+, genesisNodeBlock
 , getBestBlock
 , getHeads
 , getBlockByHash
@@ -21,7 +20,6 @@ module Network.Haskoin.Node.HeaderTree
 , getBlocksAtHeight
 , putBlock
 , putBlocks
-, genesisBlock
 , splitBlock
 , splitChains
 , nodeBlock
@@ -49,7 +47,6 @@ import           Control.Monad.State                   (evalStateT, get, put)
 import           Control.Monad.Trans                   (MonadIO, lift)
 import           Control.Monad.Trans.Either            (EitherT, left,
                                                         runEitherT)
-import           Data.Bits                             (shiftL)
 import qualified Data.ByteString                       as BS (reverse, take)
 import           Data.Function                         (on)
 import           Data.List                             (find, maximumBy, sort)
@@ -88,8 +85,6 @@ data BlockChainAction
     | KnownChain { actionNodes :: ![NodeBlock] }
     deriving (Show, Eq)
 
-type MinWork = Word32
-
 shortHash :: BlockHash -> ShortHash
 shortHash = fromRight . decode . BS.take 8 . getHash256 . getBlockHash
 
@@ -114,26 +109,12 @@ nodeHeight = nodeBlockHeight
 nodeChain :: NodeBlock -> Word32
 nodeChain = nodeBlockChain
 
--- | Number of blocks on average between difficulty cycles (2016 blocks).
-diffInterval :: Word32
-diffInterval = targetTimespan `div` targetSpacing
-
--- | Genesis block.
-genesisBlock :: NodeBlock
-genesisBlock = NodeBlock
-    { nodeBlockHash          = shortHash $ headerHash genesisHeader
-    , nodeBlockHeader        = NodeHeader genesisHeader
-    , nodeBlockWork          = 1.0
-    , nodeBlockHeight        = 0
-    , nodeBlockChain         = 0
-    }
-
 -- | Initialize the block header chain by inserting the genesis block if it
 -- doesn't already exist.
 initHeaderTree :: MonadIO m => SqlPersistT m ()
 initHeaderTree = do
     nodeM <- getBlockByHash $ headerHash genesisHeader
-    when (isNothing nodeM) $ putBlock genesisBlock
+    when (isNothing nodeM) $ putBlock genesisNodeBlock
 
 getVerifyParams
     :: MonadIO m
@@ -156,16 +137,10 @@ getVerifyParams bh = do
 
 findMinWork :: MonadIO m => NodeBlock -> SqlPersistT m MinWork
 findMinWork bn
-    | isMinWork bn = return $ blockBits $ nodeHeader bn
+    | isMinWork (nodeHeight bn) (nodeHeader bn) =
+        return $ blockBits $ nodeHeader bn
     | otherwise = getParentBlock bn >>=
         maybe (return $ blockBits $ nodeHeader bn) findMinWork
-
-isMinWork :: NodeBlock -> Bool
-isMinWork bn
-    | not allowMinDifficultyBlocks = True
-    | nodeBlockHeight bn `mod` diffInterval == 0 = True
-    | blockBits (nodeHeader bn) /= encodeCompact powLimit = True
-    | otherwise = False
 
 splitKnown :: MonadIO m
            => [BlockHeader]
@@ -228,7 +203,9 @@ connectHeaders best bhs ts = runEitherT $ do
                         ms' = blockTimestamp b : if length ms == 11
                                                  then tail ms
                                                  else ms
-                        mw' = if isMinWork bn then blockBits b else mw
+                        mw' = if isMinWork (nodeHeight bn) (nodeHeader bn)
+                              then blockBits b
+                              else mw
                     put (bn, d', ms', mw')
                     return bn
             lift $ putBlocks nodes
@@ -326,6 +303,15 @@ nodeBlock parent chain bh = NodeBlock
     newWork = nodeBlockWork parent + fromIntegral
         (headerWork bh `div` headerWork genesisHeader)
     height = nodeBlockHeight parent + 1
+
+genesisNodeBlock :: NodeBlock
+genesisNodeBlock = NodeBlock
+    { nodeBlockHash   = shortHash $ headerHash genesisHeader
+    , nodeBlockHeader = NodeHeader genesisHeader
+    , nodeBlockWork   = 1.0
+    , nodeBlockHeight = 0
+    , nodeBlockChain  = 0
+    }
 
 -- | Return blockchain action to connect given block with best block. Count will
 -- limit the amount of blocks building up from split point towards the best
@@ -433,16 +419,6 @@ isValidPOW bh
 headerPOW :: BlockHeader -> Integer
 headerPOW =  bsToInteger . BS.reverse . encode . headerHash
 
--- | Returns the work represented by this block. Work is defined as the number
--- of tries needed to solve a block in the average case with respect to the
--- target.
-headerWork :: BlockHeader -> Integer
-headerWork bh =
-    fromIntegral $ largestHash `div` (target + 1)
-  where
-    target      = decodeCompact (blockBits bh)
-    largestHash = 1 `shiftL` 256
-
 {- Persistent backend -}
 
 chainPathQuery :: forall (expr :: * -> *) (query :: * -> *) backend.
@@ -488,7 +464,7 @@ getPivots :: MonadIO m => NodeBlock -> SqlPersistT m [NodeBlock]
 getPivots = go []
   where
     go acc b
-        | nodeBlockChain b == 0 = return $ genesisBlock : b : acc
+        | nodeBlockChain b == 0 = return $ genesisNodeBlock : b : acc
         | otherwise = do
             l <- fromMaybe (error "Houston, we have a problem") <$>
                 getChainLowest b
@@ -600,7 +576,7 @@ getBlocksFromHeight block cnt height = do
 getBlockAfterTime :: MonadIO m => Timestamp -> SqlPersistT m (Maybe NodeBlock)
 getBlockAfterTime ts = do
     n@NodeBlock{..} <- getBestBlock
-    f genesisBlock n
+    f genesisNodeBlock n
   where
     f l r | nodeTimestamp r < ts =
               return Nothing

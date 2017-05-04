@@ -1,5 +1,5 @@
 name:                  haskoin-node
-version:               0.4.2
+version:               0.5.0
 synopsis:
     Implementation of a Bitoin node.
 description:
@@ -62,7 +62,7 @@ library
                  , either                   >= 4.3          && < 4.5
                  , esqueleto                >= 2.4          && < 2.6
                  , exceptions               >= 0.8          && < 0.9
-                 , haskoin-core             >= 0.3          && < 0.5
+                 , haskoin-core             >= 0.5          && < 0.6
                  , largeword                >= 1.2.4        && < 1.3
                  , lifted-async             >= 0.2          && < 0.10
                  , lifted-base              >= 0.2          && < 0.3
@@ -93,7 +93,7 @@ test-suite test-haskoin-node
                    Network.Haskoin.Node.Units
 
     build-depends: base                           >= 4.8        && < 5
-                 , haskoin-core
+                 , haskoin-core                   >= 0.5        && < 0.6
                  , haskoin-node
                  , HUnit                          >= 1.2        && < 1.6
                  , QuickCheck                     >= 2.6        && < 2.10

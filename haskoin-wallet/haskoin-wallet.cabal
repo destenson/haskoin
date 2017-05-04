@@ -1,5 +1,5 @@
 name:                  haskoin-wallet
-version:               0.4.2
+version:               0.5.0
 synopsis:
     Implementation of a Bitcoin SPV Wallet with BIP32 and multisig support.
 description:
@@ -75,8 +75,8 @@ library
                  , file-embed                    >= 0.0       && < 0.1
                  , filepath                      >= 1.4       && < 1.5
                  , haskeline
-                 , haskoin-core                  >= 0.3       && < 0.5
-                 , haskoin-node                  >= 0.3       && < 0.5
+                 , haskoin-core                  >= 0.5       && < 0.6
+                 , haskoin-node                  >= 0.5       && < 0.6
                  , lifted-async                  >= 0.2       && < 0.10
                  , lifted-base                   >= 0.2       && < 0.3
                  , monad-logger                  >= 0.3.13    && < 0.4
@@ -131,8 +131,8 @@ test-suite test-haskoin-wallet
                  , bytestring                    >= 0.10      && < 0.11
                  , containers                    >= 0.5       && < 0.6
                  , directory                     >= 1.2       && < 1.4
-                 , haskoin-core                  >= 0.3       && < 0.5
-                 , haskoin-node                  >= 0.3       && < 0.5
+                 , haskoin-core                  >= 0.5       && < 0.6
+                 , haskoin-node                  >= 0.5       && < 0.6
                  , haskoin-wallet
                  , monad-logger                  >= 0.3       && < 0.4
                  , mtl                           >= 2.1       && < 2.3
@@ -170,7 +170,7 @@ executable example-inproc-wallet-server
     build-depends:     base                          >= 4.8       && < 5
                      , aeson                         >= 0.7       && < 1.1
                      , aeson-pretty                  >= 0.7       && < 0.9
-                     , haskoin-node                  >= 0.3       && < 0.5
+                     , haskoin-node                  >= 0.5       && < 0.6
                      , haskoin-wallet
                      , monad-logger                  >= 0.3       && < 0.4
                      , persistent-sqlite             >= 2.2       && < 2.7

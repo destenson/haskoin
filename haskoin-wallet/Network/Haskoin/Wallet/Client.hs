@@ -171,7 +171,7 @@ clientMain :: IO ()
 clientMain = getArgs >>= \args -> case getOpt Permute options args of
     (fs, commands, []) -> do
         cfg <- getConfig fs
-        when (configTestnet cfg) switchToTestnet3
+        if configTestnet cfg then setTestnet3 else setProdnet
         setWorkDir cfg
         dispatchCommand cfg commands
     (_, _, msgs) -> forM_ (msgs ++ usage) putStrLn

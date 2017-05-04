@@ -205,9 +205,8 @@ data TxIn =
            -- | Script providing the requirements of the previous transaction
            -- output to spend those coins.
          , scriptInput  :: !ByteString
-           -- | Transaction version as defined by the sender of the
-           -- transaction. The intended use is for replacing transactions with
-           -- new information before the transaction is included in a block.
+           -- | BIP-68:
+           -- Relative lock-time using consensus-enforced sequence numbers
          , txInSequence :: !Word32
          } deriving (Eq, Show, Read)
 
@@ -274,4 +273,3 @@ instance Serialize OutPoint where
         (h,i) <- liftM2 (,) get getWord32le
         return $ OutPoint h i
     put (OutPoint h i) = put h >> putWord32le i
-

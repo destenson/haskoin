@@ -15,7 +15,6 @@ module Network.Haskoin.Transaction.Builder
 , chooseMSCoinsSink
 , getFee
 , getMSFee
-
 , buildInput
 ) where
 
@@ -430,4 +429,3 @@ countMulSig tx out i (pub:pubs) sigs@(TxSignature sig sh:rest)
     | verifySig (txSigHash tx out i sh) sig pub =
          1 + countMulSig tx out i pubs rest
     | otherwise = countMulSig tx out i pubs sigs
-
