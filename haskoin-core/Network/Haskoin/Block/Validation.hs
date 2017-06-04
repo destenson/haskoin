@@ -76,8 +76,8 @@ validateBlock parentHeight
         Left "Rejected because first BIP34 block has wrong hash"
 
     when (fst bip34Block >= 0 &&
-          fromEnum (parentHeight + 1) > fst bip34Block
-          && blockVersion header == 1) $
+          fromEnum (parentHeight + 1) > fst bip34Block &&
+          blockVersion header == 1) $
         Left "Rejected version 1 block"
   where
     nextWork = nextWorkRequired

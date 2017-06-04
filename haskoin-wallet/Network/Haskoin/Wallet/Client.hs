@@ -22,7 +22,7 @@ import System.Console.GetOpt
     , ArgOrder (Permute)
     )
 
-import Control.Monad (when, forM_)
+import Control.Monad (forM_)
 import Control.Monad.Trans (liftIO)
 import qualified Control.Monad.Reader as R (runReaderT)
 

@@ -19,7 +19,6 @@ import           Database.Persist.Sqlite          (SqlPersistT,
                                                    runMigrationSilent,
                                                    runSqlite)
 import           Network.Haskoin.Block
-import           Network.Haskoin.Constants
 import           Network.Haskoin.Crypto
 import           Network.Haskoin.Node.HeaderTree
 import           Network.Haskoin.Script
